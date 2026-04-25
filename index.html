@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0"/>
+<meta name="theme-color" content="#0f172a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>德语发音对比练习器</title>
+<script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  font-family:-apple-system,'Segoe UI',system-ui,sans-serif;
+  background:#0f172a;color:#e2e8f0;
+  min-height:100vh;-webkit-text-size-adjust:100%;
+}
+body{padding:0 0 160px;padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+.container{max-width:720px;margin:0 auto;padding:16px}
+.app-header{text-align:center;padding:32px 16px 20px;background:linear-gradient(135deg,#0f172a,#1e1b4b)}
+.app-header h1{
+  font-size:clamp(1.5rem,4vw,2.2rem);font-weight:800;
+  background:linear-gradient(100deg,#f6d365,#fda085,#f093fb);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin-bottom:6px;
+}
+.app-header p{color:rgba(255,255,255,.5);font-size:.9rem}
+.tabs{display:flex;gap:8px;justify-content:center;margin:20px 0 16px;flex-wrap:wrap;padding:0 4px}
+.tab-btn{
+  background:rgba(255,255,255,.08);color:#94a3b8;
+  border:1px solid rgba(255,255,255,.1);
+  padding:10px 24px;border-radius:20px;font-size:.9rem;font-weight:600;
+  cursor:pointer;transition:.2s;min-height:44px;-webkit-tap-highlight-color:transparent;
+}
+.tab-btn:hover{background:rgba(255,255,255,.15)}
+.tab-btn.active{background:linear-gradient(90deg,#f6d365,#fda085);color:#1a1a2e;border-color:transparent}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-title{font-size:.85rem;color:#94a3b8;margin-bottom:10px;font-weight:600}
+#article-text{font-size:1.1rem;line-height:1.8;color:#e2e8f0;min-height:80px;white-space:pre-wrap}
+.article-nav{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.small-btn{
+  background:rgba(255,255,255,.1);color:#94a3b8;border:1px solid rgba(255,255,255,.1);
+  padding:8px 20px;border-radius:12px;font-size:.85rem;cursor:pointer;transition:.2s;
+  min-height:44px;-webkit-tap-highlight-color:transparent;
+}
+.small-btn:hover{background:rgba(255,255,255,.2);color:#e2e8f0}
+.small-btn:active{background:rgba(255,255,255,.25)}
+.mic-wrap{text-align:center;margin:24px 0}
+#mic-btn{
+  width:80px;height:80px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,#f6d365,#fda085);
+  color:#1a1a2e;font-size:2rem;cursor:pointer;position:relative;transition:.2s;
+  display:inline-flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+}
+#mic-btn:active{transform:scale(0.95)}
+#mic-btn.recording{animation:pulse 1.2s ease infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(246,211,101,.5)}
+  70%{box-shadow:0 0 0 20px rgba(246,211,101,0)}
+  100%{box-shadow:0 0 0 0 rgba(246,211,101,0)}
+}
+#mic-status{color:#94a3b8;font-size:.85rem;margin-top:8px}
+#live-transcript{
+  font-size:1rem;line-height:1.7;color:#cbd5e1;min-height:40px;padding:12px;
+  background:rgba(0,0,0,.2);border-radius:12px;border:1px dashed rgba(255,255,255,.1);
+}
+#live-transcript .interim{color:#f6d365;opacity:.6}
+.diff-section{display:none}
+.diff-row{margin-bottom:16px}
+.diff-label{font-size:.8rem;color:#64748b;margin-bottom:6px;font-weight:600}
+.diff-text{font-size:1.05rem;line-height:2;padding:12px;border-radius:12px;background:rgba(0,0,0,.15)}
+.diff-text .match{color:#4ade80}
+.diff-text .miss{color:#f87171;text-decoration:line-through}
+.diff-text .wrong{color:#f87171;font-weight:700}
+.stats-bar{display:flex;gap:16px;justify-content:center;padding:12px;border-radius:12px;background:rgba(255,255,255,.05)}
+.stat-item{text-align:center}
+.stat-val{font-size:1.4rem;font-weight:800;color:#f6d365}
+.stat-label{font-size:.75rem;color:#64748b}
+#custom-area{display:none}
+#custom-input{
+  width:100%;min-height:120px;background:rgba(0,0,0,.2);color:#e2e8f0;
+  border:1px solid rgba(255,255,255,.1);border-radius:12px;
+  padding:12px;font-size:16px;font-family:inherit;resize:vertical;-webkit-appearance:none;
+}
+#custom-input::placeholder{color:#475569}
+.action-btn{
+  display:inline-block;margin-top:10px;background:linear-gradient(90deg,#f6d365,#fda085);
+  color:#1a1a2e;border:none;padding:10px 28px;border-radius:20px;font-size:.9rem;font-weight:700;
+  cursor:pointer;transition:.2s;
+}
+.action-btn:active{transform:scale(0.97);opacity:.9}
+.setup-input{
+  width:100%;background:rgba(0,0,0,.2);color:#e2e8f0;
+  border:1px solid rgba(255,255,255,.15);border-radius:10px;
+  padding:10px 12px;font-size:16px;font-family:inherit;margin-bottom:8px;
+  -webkit-appearance:none;
+}
+.setup-input::placeholder{color:#475569}
+.warn-text{color:#fbbf24;font-size:.82rem;line-height:1.6}
+/* 登录弹窗 */
+.login-overlay{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+.login-overlay.show{display:flex}
+.login-box{
+  background:#1e293b;border:1px solid rgba(255,255,255,.15);
+  border-radius:20px;padding:28px 24px;width:90%;max-width:360px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.login-box h2{font-size:1.1rem;font-weight:700;color:#f6d365;margin-bottom:6px;text-align:center}
+.login-box p{font-size:.82rem;color:#64748b;text-align:center;margin-bottom:18px}
+.login-err{color:#f87171;font-size:.82rem;margin-top:8px;min-height:20px;text-align:center}
+.login-close{
+  float:right;background:none;border:none;color:#64748b;
+  font-size:1.2rem;cursor:pointer;margin-top:-4px;
+}
+.early-bird{
+  background:linear-gradient(135deg,rgba(246,211,101,.08),rgba(240,147,251,.08));
+  border:1px solid rgba(246,211,101,.25);border-radius:14px;
+  padding:14px 18px;margin:0 0 4px;text-align:center;font-size:.88rem;line-height:1.7;color:#cbd5e1;
+}
+.early-bird strong{color:#f6d365}
+.early-bird .wechat{
+  display:inline-block;margin-top:6px;
+  background:rgba(246,211,101,.15);border:1px solid rgba(246,211,101,.3);
+  border-radius:8px;padding:3px 12px;font-size:.85rem;color:#f6d365;font-weight:700;letter-spacing:.5px;
+}
+@media(max-width:600px){
+  .container{padding:10px}
+  .card{padding:14px;border-radius:12px}
+  .app-header{padding:24px 12px 16px;transition:.3s}
+  .app-header p{font-size:.82rem}
+  .tabs{gap:6px;margin:14px 0 12px;transition:.3s}
+  .tab-btn{padding:8px 0;flex:1;min-width:0;text-align:center;font-size:.85rem}
+  #article-text{font-size:1rem;line-height:1.75}
+  .mic-wrap{
+    position:fixed;bottom:0;left:0;right:0;z-index:100;
+    background:linear-gradient(transparent,#0f172a 30%);padding:16px 0;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));margin:0;
+    transition:.3s;
+  }
+  #mic-btn{width:68px;height:68px;font-size:1.6rem;box-shadow:0 4px 20px rgba(246,211,101,.3)}
+  #mic-status{font-size:.8rem;margin-top:6px}
+  .diff-text{font-size:.95rem;line-height:1.9;padding:10px}
+  .stats-bar{gap:12px;padding:10px}
+  .stat-val{font-size:1.2rem}
+  .action-btn{width:100%;text-align:center;padding:12px;font-size:1rem;min-height:48px}
+  .article-nav{justify-content:space-between}
+  .small-btn{flex:1;text-align:center}
+
+  /* Recording mode — compact layout */
+  body.recording-mode .app-header{display:none}
+  body.recording-mode .tabs{display:none}
+  body.recording-mode .article-nav{display:none!important}
+  body.recording-mode .card-title{display:none}
+  body.recording-mode #article-card{
+    margin-bottom:8px;padding:12px;
+    max-height:40vh;overflow-y:auto;
+    border:1px solid rgba(246,211,101,.2);
+  }
+  body.recording-mode #article-text{font-size:.9rem;line-height:1.6}
+  body.recording-mode .mic-wrap{
+    position:fixed;bottom:12px;right:12px;left:auto;
+    width:auto;background:none;padding:0;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  body.recording-mode #mic-btn{width:56px;height:56px;font-size:1.3rem}
+  body.recording-mode #mic-status{display:none}
+  body.recording-mode #transcript-card{
+    margin-bottom:80px;
+    border:1px solid rgba(74,222,128,.2);
+  }
+  body.recording-mode #live-transcript{
+    min-height:25vh;font-size:.95rem;
+  }
+  body.recording-mode{padding-bottom:80px}
+
+}
+@media(max-width:360px){
+  .app-header h1{font-size:1.3rem}
+  .tab-btn{font-size:.8rem;padding:7px 0}
+  #article-text{font-size:.92rem}
+}
+</style>
+</head>
+<body>
+<div class="app-header">
+  <h1>德语发音对比练习器</h1>
+  <p>朗读 → 语音识别 → 对比原文，看看你的发音在"机器耳朵"里是什么样</p>
+</div>
+<div class="container">
+  <div class="early-bird">
+    🎉 <strong>早鸟试用</strong> · 全网免费额度 <strong>300 分钟</strong>，先到先得<br>
+    额度用尽后添加微信充值，可享自定义文字页面等增值服务<br>
+    <span class="wechat">微信：LeonDeutsch</span>
+  </div>
+  <!-- Azure setup -->
+  <div class="card" id="setup-card" style="display:none">
+    <div class="card-title">首次使用 — 配置语音识别服务</div>
+    <p style="color:#94a3b8;font-size:.85rem;margin-bottom:12px">
+      使用微软 Azure 语音服务（免费层每月 5 小时）。<br>
+      <a href="https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices"
+         target="_blank" style="color:#f6d365">点此申请 Azure 语音服务 →</a>
+      创建后复制"密钥"和"区域"填入下方。
+    </p>
+    <input class="setup-input" id="azure-key" placeholder="API Key（密钥1）" autocomplete="off"/>
+    <input class="setup-input" id="azure-region" placeholder="区域（如 eastasia、westeurope）"/>
+    <button class="action-btn" onclick="saveAzureConfig()">保存并开始</button>
+    <div id="setup-err" class="warn-text" style="margin-top:8px"></div>
+  </div>
+
+  <!-- Main UI (hidden until configured) -->
+  <div id="main-ui" style="display:none">
+    <div class="tabs">
+      <button class="tab-btn active" data-level="A1">A1</button>
+      <button class="tab-btn" data-level="A2">A2</button>
+      <button class="tab-btn" data-level="B1">B1</button>
+      <button class="tab-btn" data-level="custom" id="custom-tab">自定义</button>
+    </div>
+    <div class="card" id="article-card">
+      <div class="card-title">朗读以下段落 <span id="article-counter"></span></div>
+      <div id="article-text"></div>
+      <div class="article-nav">
+        <button class="small-btn" onclick="prevArticle()">上一篇</button>
+        <button class="small-btn" onclick="nextArticle()">下一篇</button>
+      </div>
+    </div>
+    <div class="card" id="custom-area">
+      <div class="card-title">粘贴你的德语文章</div>
+      <textarea id="custom-input" placeholder="在此粘贴任意德语文本..."></textarea>
+      <button class="action-btn" onclick="useCustomText()">开始练习</button>
+    </div>    <div class="mic-wrap">
+      <button id="mic-btn" onclick="toggleRecording()">&#127908;</button>
+      <div id="mic-status">点击麦克风开始朗读</div>
+    </div>
+    <div class="card" id="transcript-card">
+      <div class="card-title">语音识别结果（实时）</div>
+      <div id="live-transcript">等待录音...</div>
+    </div>
+    <div class="diff-section" id="diff-section">
+      <div class="card">
+        <div class="card-title">对比结果</div>
+        <div class="diff-row">
+          <div class="diff-label">原文</div>
+          <div class="diff-text" id="diff-original"></div>
+        </div>
+        <div class="diff-row">
+          <div class="diff-label">你的发音</div>
+          <div class="diff-text" id="diff-spoken"></div>
+        </div>
+      </div>
+      <div class="stats-bar">
+        <div class="stat-item"><div class="stat-val" id="stat-accuracy">-</div><div class="stat-label">准确率</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-correct">-</div><div class="stat-label">正确词数</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-total">-</div><div class="stat-label">总词数</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 登录弹窗 -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <button class="login-close" onclick="closeLogin()">✕</button>
+    <h2>🔐 自定义文章</h2>
+    <p>此功能需要登录，请向老师获取账号密码</p>
+    <input class="setup-input" id="login-user" placeholder="用户名" autocomplete="off"/>
+    <input class="setup-input" id="login-pass" placeholder="密码" type="password" autocomplete="off"/>
+    <button class="action-btn" style="width:100%;text-align:center" onclick="doLogin()">登录</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<script>
+const articles = {
+  A1: [
+    "Hallo, ich heiße Anna und ich komme aus Berlin. Ich bin zwanzig Jahre alt und studiere Deutsch an der Universität. Jeden Morgen stehe ich um sieben Uhr auf und frühstücke mit meiner Familie. Mein Vater trinkt Kaffee und meine Mutter isst Brot mit Marmelade. Nach dem Frühstück fahre ich mit dem Bus zur Uni. Am Abend lese ich gern Bücher oder höre Musik. Am Wochenende gehe ich oft mit Freunden spazieren.",
+    "Meine Familie ist nicht sehr groß. Ich habe einen Bruder und eine Schwester. Mein Bruder heißt Tom und er ist fünfzehn Jahre alt. Er geht noch zur Schule und spielt gern Fußball. Meine Schwester Lisa ist achtundzwanzig und arbeitet als Lehrerin. Meine Eltern wohnen in einem kleinen Haus mit einem Garten. Im Garten haben wir Blumen und einen Apfelbaum. Ich besuche meine Familie jeden Sonntag.",
+    "Ich wohne in einer kleinen Wohnung in der Stadtmitte. Die Wohnung hat zwei Zimmer, eine Küche und ein Bad. Mein Zimmer ist nicht sehr groß, aber es ist gemütlich. Ich habe ein Bett, einen Schreibtisch und einen Schrank. An der Wand hängen Fotos von meinen Freunden. Die Küche ist hell und modern. Ich koche gern Pasta und Suppe. Mein Lieblingsessen ist Pizza mit Käse und Tomaten.",
+    "Vedat Arslan kommt aus der Türkei, aus Erzurum. Er lernt Deutsch an der Volkshochschule in Köln. Er ist verheiratet mit Seval. Sie haben zwei Kinder, Yasemin und Volkan. Vedat hat im Moment keine Arbeit. Seval arbeitet bei der Telekom. Die Arslans wohnen seit 2009 in Köln. Sie sprechen Türkisch und Deutsch. Yasemin und Volkan lernen Englisch in der Schule. Die Arslans sagen: Deutschland ist unsere neue Heimat."
+  ],
+  A2: [
+    "Letzten Sommer bin ich mit meiner Freundin nach München gereist. Wir sind mit dem Zug gefahren und die Fahrt hat etwa vier Stunden gedauert. In München haben wir ein kleines Hotel in der Nähe vom Marienplatz gefunden. Am ersten Tag haben wir den Englischen Garten besucht und dort ein Picknick gemacht. Das Wetter war wunderbar, sonnig und warm. Am nächsten Tag sind wir ins Deutsche Museum gegangen. Dort haben wir viel über Technik und Wissenschaft gelernt. Abends haben wir in einem bayerischen Restaurant gegessen.",
+    "Gestern war ich beim Arzt, weil ich seit drei Tagen Kopfschmerzen und Halsschmerzen hatte. Im Wartezimmer musste ich dreißig Minuten warten. Der Arzt hat mich untersucht und gesagt, dass ich eine Erkältung habe. Er hat mir ein Rezept für Medikamente gegeben und gesagt, ich soll viel Tee trinken und mich ausruhen. In der Apotheke habe ich die Medikamente gekauft. Die Apothekerin war sehr freundlich und hat mir erklärt, wie ich die Tabletten nehmen soll. Jetzt fühle ich mich schon etwas besser.",
+    "Am Samstag gehe ich gern einkaufen. Zuerst mache ich eine Einkaufsliste und dann fahre ich zum Supermarkt. Ich kaufe Obst und Gemüse, Brot, Milch und manchmal auch Fleisch oder Fisch. Letzte Woche habe ich einen neuen Laden entdeckt, der Bio-Produkte verkauft. Die Preise sind etwas höher, aber die Qualität ist sehr gut. Nach dem Einkaufen gehe ich oft noch in ein Café und trinke einen Cappuccino. Manchmal treffe ich dort Freunde und wir unterhalten uns über die Woche."
+  ],
+  B1: [
+    "Der Klimawandel ist eines der größten Probleme unserer Zeit. Die Temperaturen steigen weltweit und das hat schwere Folgen für die Umwelt. Gletscher schmelzen, der Meeresspiegel steigt und extreme Wetterereignisse werden häufiger. Viele Menschen versuchen deshalb, ihren Alltag umweltfreundlicher zu gestalten. Sie fahren mit dem Fahrrad statt mit dem Auto, kaufen regionale Produkte und vermeiden Plastik. Auch die Politik muss handeln und strengere Gesetze zum Schutz der Umwelt einführen. Jeder einzelne Mensch kann einen Beitrag leisten, auch wenn er noch so klein ist.",
+    "Die Arbeitswelt verändert sich durch die Digitalisierung grundlegend. Immer mehr Menschen arbeiten von zu Hause aus und nutzen digitale Werkzeuge für die Kommunikation mit Kollegen. Das hat Vorteile, wie zum Beispiel mehr Flexibilität und weniger Pendelzeit. Aber es gibt auch Nachteile, denn die Grenze zwischen Arbeit und Freizeit verschwimmt. Manche Berufe werden durch künstliche Intelligenz ersetzt, während gleichzeitig neue Berufe entstehen. Es ist wichtig, sich ständig weiterzubilden und neue Fähigkeiten zu erlernen, um auf dem Arbeitsmarkt wettbewerbsfähig zu bleiben.",
+    "Soziale Medien spielen heute eine zentrale Rolle in unserem Leben. Fast jeder hat ein Profil auf mindestens einer Plattform und teilt dort Fotos, Meinungen und Erlebnisse. Einerseits ermöglichen soziale Medien den Kontakt mit Menschen auf der ganzen Welt und den schnellen Austausch von Informationen. Andererseits gibt es auch Risiken wie Cybermobbing, Falschinformationen und Suchtverhalten. Besonders junge Menschen verbringen oft mehrere Stunden täglich in sozialen Netzwerken. Experten empfehlen, bewusst mit diesen Medien umzugehen und regelmäßig digitale Pausen einzulegen."
+  ]
+};
+
+let currentLevel='A1', currentIndex=0, currentText='';
+let recognizer=null, isRecording=false, finalTranscript='', interimTranscript='';
+const $=id=>document.getElementById(id);
+const esc=s=>{const d=document.createElement('div');d.textContent=s;return d.innerHTML};
+
+/* ===== 登录系统 ===== */
+// 账号哈希列表（SHA-256 of "username:password"）
+const ACCOUNT_HASHES = [
+  'be808c692b038c256b332f98e5079c07f75c9c8723e9be69b1133eba0c0bf2df', // mia7 / wd8kp3
+  '266432780fb08283eddf08c39b83d56f142c4304eb1db601371b65a93d996354', // leo3 / rn5jq7
+  '05b9f06882e0ee4ecf356b13033abdfad77a4b557e794286734b039359016a6a', // kai9 / bx7ml2
+  '711771430537127b789595c82cb006d94b4d8c96044ed274ddc640d2f3124aa8', // zoe5 / fy4nh8
+  '5170556d062ad406c50814ad56910d450a9510a0c8fea62865f3bb1a585b060f', // max2 / ck6st9
+];
+
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function getDeviceId(){
+  let id=localStorage.getItem('_did');
+  if(!id){id=crypto.randomUUID();localStorage.setItem('_did',id);}
+  return id;
+}
+
+function isLoggedIn(){
+  return localStorage.getItem('_auth')==='1';
+}
+
+function openLogin(){
+  $('login-overlay').classList.add('show');
+  $('login-user').value='';$('login-pass').value='';$('login-err').textContent='';
+  setTimeout(()=>$('login-user').focus(),100);
+}
+function closeLogin(){
+  $('login-overlay').classList.remove('show');
+  // 如果未登录，切回A1
+  if(!isLoggedIn()){
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelector('[data-level="A1"]').classList.add('active');
+    currentLevel='A1';currentIndex=0;
+    $('article-card').style.display='block';$('custom-area').style.display='none';
+    showArticle();
+  }
+}
+
+async function doLogin(){
+  const user=$('login-user').value.trim();
+  const pass=$('login-pass').value.trim();
+  if(!user||!pass){$('login-err').textContent='请填写用户名和密码';return;}
+  const hash=await sha256(user+':'+pass);
+  if(!ACCOUNT_HASHES.includes(hash)){
+    $('login-err').textContent='用户名或密码错误，请联系老师获取账号';return;
+  }
+  // 检查设备绑定
+  const boundKey='_bound_'+hash;
+  const myId=getDeviceId();
+  const boundId=localStorage.getItem(boundKey);
+  if(boundId && boundId!==myId){
+    $('login-err').textContent='此账号已在其他设备使用，请联系老师获取新账号';return;
+  }
+  // 绑定设备并登录
+  localStorage.setItem(boundKey,myId);
+  localStorage.setItem('_auth','1');
+  localStorage.setItem('_authHash',hash);
+  $('login-overlay').classList.remove('show');
+  $('custom-area').style.display='block';
+  $('article-card').style.display='none';
+}
+
+function checkCustomAccess(){
+  if(isLoggedIn()){
+    $('article-card').style.display='none';
+    $('custom-area').style.display='block';
+  } else {
+    openLogin();
+  }
+}
+/* ===== 登录系统结束 ===== */
+
+const BUILTIN_KEY='7U5Zm0WXmxKVYWogGla5WpYoFwaD76vBzphLVbiUNHWpydahk5ASJQQJ99CDAC3pKaRXJ3w3AAAYACOGZlx4';
+const BUILTIN_REGION='eastasia';
+
+function parseHash(){
+  const h=location.hash.slice(1);
+  const params=new URLSearchParams(h);
+  return {key:params.get('key'),region:params.get('region')};
+}
+
+function saveAzureConfig(){
+  const key=$('azure-key').value.trim();
+  const region=$('azure-region').value.trim();
+  if(!key||!region){$('setup-err').textContent='请填写 Key 和区域';return}
+  localStorage.setItem('az-key',key);
+  localStorage.setItem('az-region',region);
+  initApp();
+}
+function resetConfig(){
+  localStorage.removeItem('az-key');
+  localStorage.removeItem('az-region');
+  location.hash='';
+  $('setup-card').style.display='block';
+  $('main-ui').style.display='none';
+}
+
+function initApp(){
+  const hash=parseHash();
+  let key=hash.key||localStorage.getItem('az-key')||BUILTIN_KEY;
+  let region=hash.region||localStorage.getItem('az-region')||BUILTIN_REGION;
+  if(!key||!region){$('setup-card').style.display='block';return}
+  localStorage.setItem('az-key',key);
+  localStorage.setItem('az-region',region);
+  $('setup-card').style.display='none';
+  $('main-ui').style.display='block';
+  initTabs();
+  showArticle();
+}
+
+function initTabs(){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const level=btn.dataset.level;
+      if(level==='custom'){
+        checkCustomAccess();
+      } else {
+        currentLevel=level;currentIndex=0;
+        $('article-card').style.display='block';$('custom-area').style.display='none';
+        showArticle();
+      }
+      resetSession();
+    });
+  });
+}
+function showArticle(){
+  const list=articles[currentLevel];currentText=list[currentIndex];
+  $('article-text').textContent=currentText;
+  $('article-counter').textContent=`(${currentIndex+1}/${list.length})`;
+}
+function prevArticle(){
+  const list=articles[currentLevel];
+  currentIndex=(currentIndex-1+list.length)%list.length;showArticle();resetSession();
+}
+function nextArticle(){
+  const list=articles[currentLevel];
+  currentIndex=(currentIndex+1)%list.length;showArticle();resetSession();
+}
+function useCustomText(){
+  const txt=$('custom-input').value.trim();if(!txt)return;
+  currentText=txt;$('custom-area').style.display='none';
+  $('article-card').style.display='block';$('article-text').textContent=currentText;
+  $('article-counter').textContent='(自定义)';
+  document.querySelector('.article-nav').style.display='none';resetSession();
+}
+function resetSession(){
+  finalTranscript='';interimTranscript='';
+  $('live-transcript').textContent='等待录音...';
+  $('diff-section').style.display='none';
+  if(isRecording)stopRecording();
+  document.querySelector('.article-nav').style.display=
+    $('article-counter').textContent==='(自定义)'?'none':'flex';
+}
+
+function toggleRecording(){isRecording?stopRecording():startRecording()}
+
+async function startRecording(){
+  if(!currentText){$('mic-status').textContent='请先选择或粘贴文章';return}
+  const key=localStorage.getItem('az-key'), region=localStorage.getItem('az-region');
+  if(!key||!region){$('mic-status').textContent='请先配置 Azure API Key';return}
+
+  finalTranscript='';interimTranscript='';
+  $('live-transcript').textContent='正在连接语音服务...';
+  $('diff-section').style.display='none';
+  document.body.classList.add('recording-mode');
+
+  try{
+    const speechConfig=SpeechSDK.SpeechConfig.fromSubscription(key,region);
+    speechConfig.speechRecognitionLanguage='de-DE';
+    speechConfig.outputFormat=SpeechSDK.OutputFormat.Detailed;
+    const audioConfig=SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+    recognizer=new SpeechSDK.SpeechRecognizer(speechConfig,audioConfig);
+
+    recognizer.recognizing=(s,e)=>{
+      interimTranscript=e.result.text;
+      $('live-transcript').innerHTML=esc(finalTranscript)+
+        '<span class="interim">'+esc(interimTranscript)+'</span>';
+    };
+    recognizer.recognized=(s,e)=>{
+      if(e.result.reason===SpeechSDK.ResultReason.RecognizedSpeech){
+        let text=e.result.text;
+        try{
+          const json=JSON.parse(e.result.properties.getProperty(
+            SpeechSDK.PropertyId.SpeechServiceResponse_JsonResult));
+          if(json.NBest&&json.NBest[0]&&json.NBest[0].Lexical){
+            text=json.NBest[0].Lexical;
+          }
+        }catch(ex){}
+        finalTranscript+=text+' ';interimTranscript='';
+        $('live-transcript').innerHTML=esc(finalTranscript);
+      }
+    };
+    recognizer.canceled=(s,e)=>{
+      if(e.reason===SpeechSDK.CancellationReason.Error){
+        $('mic-status').textContent='识别出错: '+e.errorDetails;
+        forceStopUI();
+      }
+    };
+    recognizer.sessionStopped=()=>{
+      if(!isRecording)showDiff();
+    };
+
+    await recognizer.startContinuousRecognitionAsync();
+    isRecording=true;
+    $('mic-btn').classList.add('recording');
+    $('mic-status').textContent='正在录音，再次点击停止';
+    $('live-transcript').textContent='正在听...';
+  }catch(e){
+    $('mic-status').textContent='启动失败: '+e.message;
+    forceStopUI();
+  }
+}
+
+async function stopRecording(){
+  isRecording=false;
+  document.body.classList.remove('recording-mode');
+  $('mic-btn').classList.remove('recording');
+  $('mic-status').textContent='点击麦克风开始朗读';
+  if(recognizer){
+    try{await recognizer.stopContinuousRecognitionAsync()}catch(e){}
+    recognizer.close();recognizer=null;
+  }
+  showDiff();
+}
+function forceStopUI(){isRecording=false;$('mic-btn').classList.remove('recording');document.body.classList.remove('recording-mode')}
+
+function tokenize(s){return s.toLowerCase().replace(/[.,!?;:"""„()]/g,'').split(/\s+/).filter(Boolean)}
+function lcs(a,b){
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>new Uint16Array(n+1));
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  const r=[];let i=m,j=n;
+  while(i>0&&j>0){
+    if(a[i-1]===b[j-1]){r.unshift({ai:i-1,bi:j-1});i--;j--}
+    else if(dp[i-1][j]>dp[i][j-1])i--;else j--;
+  }
+  return r;
+}
+function showDiff(){
+  const spoken=(finalTranscript+interimTranscript).trim();if(!spoken)return;
+  const oT=tokenize(currentText),sT=tokenize(spoken);
+  const matches=lcs(oT,sT);
+  const mO=new Set(matches.map(m=>m.ai)),mS=new Set(matches.map(m=>m.bi));
+  let oH='',sH='';
+  oT.forEach((w,i)=>{oH+=mO.has(i)?`<span class="match">${esc(w)}</span> `:`<span class="miss">${esc(w)}</span> `});
+  sT.forEach((w,i)=>{sH+=mS.has(i)?`<span class="match">${esc(w)}</span> `:`<span class="wrong">${esc(w)}</span> `});
+  $('diff-original').innerHTML=oH;$('diff-spoken').innerHTML=sH;
+  const pct=oT.length>0?Math.round(matches.length/oT.length*100):0;
+  $('stat-accuracy').textContent=pct+'%';
+  $('stat-correct').textContent=matches.length;
+  $('stat-total').textContent=oT.length;
+  $('diff-section').style.display='block';
+  $('diff-section').scrollIntoView({behavior:'smooth'});
+}
+
+initApp();
+</script>
+</body>
+</html>
